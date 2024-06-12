@@ -10,6 +10,7 @@ class Message(Base):
     __tablename__ = 'messages'
     id = Column(Integer, primary_key=True, autoincrement=True)
     role = Column(String)
+    message_type = Column(String)
     content = Column(String)
     date = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -33,7 +34,7 @@ def add_chat(title):
     session.commit()
     return new_chat.id
 
-def add_message(chat_id, role, content):
+def add_message(chat_id, role, message_type, content):
     session = Session()
     new_message = Message(role=role, content=content)
     session.add(new_message)
@@ -45,7 +46,8 @@ def add_message(chat_id, role, content):
 def get_all_messages(chat_id):
     session = Session()
     messages_query = session.query(Message).join(ChatMessageLink).filter(ChatMessageLink.chat_id == chat_id).order_by(Message.date).all()
-    return [(msg.date, msg.role, msg.content) for msg in messages_query]
+    return messages_query
+    # return [(msg.date, msg.role, msg.content) for msg in messages_query]
 
 def get_recent_chats(chats_to_return):
     session = Session()

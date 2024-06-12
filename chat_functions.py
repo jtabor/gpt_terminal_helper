@@ -68,6 +68,7 @@ def run_in_terminal(from_gpt):
             return_result = args['return_result']
         else:
             return_result = False
+#TODO - handle this more reasonably.. it can lead to loops
         return_result = True
         if (prompt_required):
             run_command = prompt_user("Run: %s return? %s" % (command,str(return_result)))
