@@ -47,7 +47,7 @@ def prompt_user(prompt=""):
 def run_in_terminal(from_gpt):
 
     result = ""
-    print("> : " + str(from_gpt)) 
+    print("assistant running > : " + str(from_gpt)) 
     if (from_gpt):
         args = json.loads(from_gpt)
         command = args['command']
@@ -57,12 +57,12 @@ def run_in_terminal(from_gpt):
             # pattern = r'\b' + re.escape(value) + r'\b'
             pattern = r'(?<!\S)' + re.escape(value) + r'(?!\S)'
             if re.search(pattern, command):
-                print("Matched value: " + value)
+                # print("Matched value: " + value)
                 prompt_required = False
 
         for value in command_list_required:
             if (value in command):
-                print("Matched value: " + value)
+                # print("Matched value: " + value)
                 prompt_required = True
         if ('return_result' in args):
             return_result = args['return_result']
@@ -78,7 +78,7 @@ def run_in_terminal(from_gpt):
             if return_result:
                 result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 result = "RUNNING: " + command + "\nSTDOUT:\n" + str(result.stdout) + "\nSTDERR:\n" + str(result.stderr)
-                print(str(return_result),file=sys.stderr)
+                # print(str(return_result),file=sys.stderr)
             else:
                 result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         else:

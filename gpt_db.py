@@ -18,6 +18,7 @@ class Chat(Base):
     __tablename__ = 'chats'
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String)
+    date = Column(DateTime, default=datetime.datetime.utcnow)
 
 class ChatMessageLink(Base):
     __tablename__ = 'chat_message_links'
@@ -36,7 +37,7 @@ def add_chat(title):
 
 def add_message(chat_id, role, message_type, content):
     session = Session()
-    new_message = Message(role=role, content=content)
+    new_message = Message(role=role, message_type=message_type, content=content)
     session.add(new_message)
     session.commit()
     chat_link = ChatMessageLink(message_id=new_message.id, chat_id=chat_id)
@@ -49,9 +50,18 @@ def get_all_messages(chat_id):
     return messages_query
     # return [(msg.date, msg.role, msg.content) for msg in messages_query]
 
+def update_chat_date(chat_id):
+    session = Session()
+    chat_to_update = session.query(Chat).filter(Chat.id == chat_id).first()
+    if chat_to_update:
+        chat_to_update.date = datetime.datetime.utcnow()
+        session.commit()
+    else:
+        raise ValueError("Chat with id {} not found".format(chat_id))
+
 def get_recent_chats(chats_to_return):
     session = Session()
-    recent_chats = session.query(Chat).order_by(Message.date.desc()).limit(chats_to_return).all()
+    recent_chats = session.query(Chat).order_by(Chat.date.desc()).limit(chats_to_return).all()
     return recent_chats 
 
 # Setup the database

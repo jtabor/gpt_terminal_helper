@@ -13,6 +13,7 @@ from datetime import datetime
 import argparse
 import json
 import gpt_db
+import textwrap
 
 GPT_MODEL = 'gpt-4-turbo-2024-04-09'
 # GPT_MODEL = 'gpt-4o-2024-05-13'
@@ -21,6 +22,7 @@ SYSTEM_PROMPT = "You are a helpful command line assistant.  You take requests fr
 GPT_DIRECTORY = os.path.expanduser("~/.gpt")
 GLOBAL_CONFIG = GPT_DIRECTORY + " /global_context.md"
 MAX_FILES_LIST = 20
+INDENT_WIDTH = 12
 
 global_config = None
 
@@ -43,6 +45,29 @@ tools_descriptions = [tool.description for tool in tools]
 def add_message_to_chat(message, chat_id):
     for content in message['content']:
         gpt_db.add_message(chat_id, message['role'], content['type'],content[content['type']])
+
+def print_message(message,show_system=False):
+    
+    if message['role'] != 'system' or show_system:
+        wrapper = textwrap.TextWrapper(width=os.get_terminal_size().columns-15,initial_indent='',subsequent_indent=' '*INDENT_WIDTH)
+        remaining_pad = INDENT_WIDTH - len(message['role'])
+        spaces = ' '*remaining_pad
+        formatted_chat = str(message['role']) + ":" + spaces
+        first_line = True
+        for content in message['content']:
+            if content['type'] == 'text':
+                formatted_message = wrapper.fill(content[content['type']].strip().replace('\n',' '))
+                if not first_line:
+                    formatted_message = formatted_message[INDENT_WIDTH:]
+                formatted_chat += formatted_message + '\n'
+            else:
+                message_text = "UNKNOWN_TYPE: " + content['type']
+                formatted_message = wrapper.fill(message_text.strip().replace('\n',' '))
+                if not first_line:
+                    formatted_message = formatted_message[INDENT_WIDTH:]
+                formatted_chat += '\n' + formatted_message
+            first_line = False
+        print(formatted_chat)
 
 def generate_environment_messages():
     lsb_release_result = subprocess.run("lsb_release -a", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -67,20 +92,21 @@ def load_default_chat(prompt,stdin):
         add_message_to_chat(message,chat_id)
     #NOTE: Don't save the environment.. we want that fresh each time (I think)
     for environment_message in environment_messages:
-        messages.append(environment_messages)
+        messages.append(environment_message)
 
     return [messages,chat_id]
 
 def load_chat_from_db(chat_id):
-    db_messages = get_all_messages(chat_id)
+    db_messages = gpt_db.get_all_messages(chat_id)
+    gpt_db.update_chat_date(chat_id)
     to_return = []
     for db_message in db_messages:
-        to_return.append({"role":db_message.role,"content": [ { "type": "text", "text": db_message.content}]})
+        to_return.append({"role":db_message.role,"content": [ { "type": db_message.message_type, "text": db_message.content}]})
 
     to_return.append({"role":"system","content": [{"type":"text", "text": "NOTE The conversation has been reloaded in the following environment"}]})
     environment_messages = generate_environment_messages()
     for environment_message in environment_messages:
-        to_return.append(environment_messages)
+        to_return.append(environment_message)
     return to_return
 
 
@@ -108,9 +134,10 @@ def call_and_process(message_list, chat_id):
 
 
     if return_message:
+        return_message ={"role": "assistant", "content": [{"type":"text", "text":return_message}]} 
+        print_message(return_message)
         add_message_to_chat(return_message,chat_id)
-        print("GPT: " + str(return_message), file=sys.stderr)
-        message_list.append({"role": "assistant", "content": return_message})
+        message_list.append(return_message)
         if (tools_called is not None):
             print("INFO: Tools pending: " + str(len(response.choices[0].message.tool_calls)),file=sys.stderr)
         user_input = cf.safe_input("Answer: ").lower()
@@ -127,9 +154,10 @@ def call_and_process(message_list, chat_id):
                 if (function.name == tool.name):
                     [should_continue, return_message] = tool.run(function.arguments)
                     new_message = {"role": "system", "content":[{"type":"text", "text":return_message }]}
+                    print_message(new_message,show_system=True)
                     message_list.append(new_message)
                     add_message_to_chat(new_message,chat_id)
-                    print(return_message,file=sys.stderr)
+                    # print(return_message,file=sys.stderr)
 
     return [should_continue, message_list]
 
@@ -140,12 +168,16 @@ if __name__ == "__main__":
     parser.add_argument('--last', '-l', action='store_true', help='Loads the last conversation.')
     parser.add_argument('--incognito', '-i', action='store_true', help='Marks the conversation as not saved.')
     parser.add_argument('--resume','-r', action='store_true', help='Open the conversation list and choose one to continue')
+    parser.add_argument('--print','-p', action='store_true', help='Convert a previous conversation to text')
 
     args = parser.parse_args()  
-    if (not (args.resume or len(args.prompt) > 0) or args.last):
+    print("DEBUG: " + str(args))
+    if (not (args.resume or (len(args.prompt) > 0) or args.last or args.print)):
         parser.print_help()
         exit()
-
+    
+    
+    
     stdin = ""
     ready = True
     while ready:
@@ -161,11 +193,13 @@ if __name__ == "__main__":
         stdin = "CONTENTS OF STDIN:\n" + stdin
 
     chat_loaded = False
-    if (args.resume):
+    if (args.resume or args.print):
         recent_chats = gpt_db.get_recent_chats(MAX_FILES_LIST)
+        
         num_chats = 0
         for chat in recent_chats:
-            print("[%d] - %s" % (num_chats,recent_chats.title))
+            print("[%d] - %s" % (num_chats,chat.title))
+            num_chats = num_chats + 1
         selection = False
         while not selection:
             answer = input("Select a conversation to continue: ")
@@ -177,13 +211,21 @@ if __name__ == "__main__":
             else:
                 print("ERROR - Invalid input - quitting.")
                 exit()
-
-        messages = load_chat_from_file(chat_id)
-        chat_loaded = True
+        print("\n\n")
+        messages = load_chat_from_db(chat_id)
+        for message in messages:
+            print_message(message,args.print)
+        if (args.resume):
+            answer = input("Additional Prompt:")
+            user_message ={"role": "user", "content": [{"type":'text', "text": answer}]} 
+            messages.append(user_message)
+            add_message_to_chat(user_message, chat_id)
+            chat_loaded = True
+        else:
+            exit()
 
     if not chat_loaded:
         [messages, chat_id] = load_default_chat(args.prompt,stdin)
-    print("DEBUG: " + str(messages))
     [result, messages] = call_and_process(messages, chat_id)
 
     while result:
