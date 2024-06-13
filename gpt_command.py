@@ -20,7 +20,7 @@ GPT_MODEL = 'gpt-4-turbo-2024-04-09'
 SYSTEM_PROMPT = "You are a helpful command line assistant.  You take requests from the user and generate Linux shell commands for them.  You ask for extra info if you need it.  Use the provided function calls to accomplish the user's request.  You can call shell commands with return_result = True to get more information to accomplish your goal.  Unless otherwise specified, assume you are using the current directory for all requests.  Try to take some initiative while answering the user's question.  They will approve all shell commands."
 
 GPT_DIRECTORY = os.path.expanduser("~/.gpt")
-GLOBAL_CONFIG = GPT_DIRECTORY + " /global_context.md"
+GLOBAL_CONFIG = GPT_DIRECTORY + "/global_context.md"
 MAX_FILES_LIST = 20
 INDENT_WIDTH = 12
 
@@ -28,17 +28,6 @@ global_config = None
 
 if not os.path.exists(GPT_DIRECTORY):
     os.makedirs(GPT_DIRECTORY)
-
-if os.path.exists(GLOBAL_CONFIG):
-    with open(GLOBAL_CONFIG, "r") as file:
-        global_config = file.read()
-        messages.append({"role": "system", "content": "USER SPECIFIC INFO: \n" + global_config})
-
-LOCAL_CONFIG = os.getcwd() + "/.gpt/local_context.md"
-if os.path.exists(LOCAL_CONFIG):
-    with open(LOCAL_CONFIG, "r") as file:
-        local_config = file.read()
-        messages.append({"role": "system", "content": "DIRECTORY SPECIFIC INFO: \n" + local_config})
 
 tools = [cf.run_in_terminal_function, cf.write_file_function]
 tools_descriptions = [tool.description for tool in tools]
@@ -80,6 +69,22 @@ def generate_environment_messages():
     to_return = []
     to_return.append({ "role": "system", "content": [ { "type": "text", "text": lsb_release_result, } ], })
     to_return.append({ "role": "system", "content": [ { "type": "text", "text": current_directory + "\n" + date, } ], })
+
+
+    return to_return
+
+def generate_user_specific_messages():
+    to_return = []
+    if os.path.exists(GLOBAL_CONFIG):
+        with open(GLOBAL_CONFIG, "r") as file:
+            global_config = file.read()
+            to_return.append({"role": "system", "content": [{"type":"text", "text":"USER SPECIFIC INFO: \n" + global_config}]})
+
+    LOCAL_CONFIG = os.getcwd() + "/.gpt/local_context.md"
+    if os.path.exists(LOCAL_CONFIG):
+        with open(LOCAL_CONFIG, "r") as file:
+            local_config = file.read()
+            to_return.append({"role": "system", "content":  [{"type":"text","text":"DIRECTORY SPECIFIC INFO: \n" + local_config}]})
     return to_return
 
 def load_default_chat(prompt,stdin):
@@ -87,10 +92,15 @@ def load_default_chat(prompt,stdin):
     messages.append({ "role": "system", "content": [ { "type": "text", "text": stdin, } ], })
     messages.append({ "role": "user", "content": [ { "type": "text", "text": prompt, } ], })
     chat_id = gpt_db.add_chat(prompt)
-    environment_messages = generate_environment_messages()
+    user_specific_messages = generate_user_specific_messages()
+   
+    for user_specific_message in user_specific_messages:
+        messages.append(user_specific_message)
     for message in messages:
         add_message_to_chat(message,chat_id)
+    
     #NOTE: Don't save the environment.. we want that fresh each time (I think)
+    environment_messages = generate_environment_messages()
     for environment_message in environment_messages:
         messages.append(environment_message)
 
@@ -107,6 +117,9 @@ def load_chat_from_db(chat_id):
     environment_messages = generate_environment_messages()
     for environment_message in environment_messages:
         to_return.append(environment_message)
+    user_specific_messages = generate_user_specific_messages()
+    for user_specific_message in user_specific_messages:
+        to_return.append(user_specific_message)
     return to_return
 
 
@@ -171,7 +184,6 @@ if __name__ == "__main__":
     parser.add_argument('--print','-p', action='store_true', help='Convert a previous conversation to text')
 
     args = parser.parse_args()  
-    print("DEBUG: " + str(args))
     if (not (args.resume or (len(args.prompt) > 0) or args.last or args.print)):
         parser.print_help()
         exit()
