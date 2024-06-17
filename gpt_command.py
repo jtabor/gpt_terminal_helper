@@ -24,6 +24,7 @@ GLOBAL_CONFIG = GPT_DIRECTORY + "/global_context.md"
 MAX_FILES_LIST = 20
 INDENT_WIDTH = 12
 
+MAX_TOKENS = 4096
 global_config = None
 
 if not os.path.exists(GPT_DIRECTORY):
@@ -139,7 +140,7 @@ def call_and_process(message_list, chat_id):
         model=GPT_MODEL,
         messages=message_list,
         tools=tools_descriptions,
-        max_tokens=1000)
+        max_tokens=MAX_TOKENS)
     
     tools_called = response.choices[0].message.tool_calls
 
@@ -205,21 +206,23 @@ if __name__ == "__main__":
         stdin = "CONTENTS OF STDIN:\n" + stdin
 
     chat_loaded = False
+    first_chat = 0
     if (args.resume or args.print):
-        recent_chats = gpt_db.get_recent_chats(MAX_FILES_LIST)
-        
-        num_chats = 0
-        for chat in recent_chats:
-            print("[%d] - %s" % (num_chats,chat.title))
-            num_chats = num_chats + 1
         selection = False
         while not selection:
+            recent_chats = gpt_db.get_recent_chats(first_chat,first_chat + MAX_FILES_LIST - 1)
+            num_chats = 0
+            for chat in recent_chats:
+                print("[%d] - %s" % (num_chats,chat.title))
+                num_chats = num_chats + 1
             answer = input("Select a conversation to continue: ")
             answer = answer.lower()
             if (answer.isdigit()):
                 answer = int(answer)
                 chat_id = recent_chats[answer].id 
                 selection = True
+            elif (answer == 'm'):
+                first_chat = first_chat + MAX_FILES_LIST
             else:
                 print("ERROR - Invalid input - quitting.")
                 exit()

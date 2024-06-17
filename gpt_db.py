@@ -59,10 +59,23 @@ def update_chat_date(chat_id):
     else:
         raise ValueError("Chat with id {} not found".format(chat_id))
 
-def get_recent_chats(chats_to_return):
+def get_recent_chats(first_chat, last_chat):
+
     session = Session()
-    recent_chats = session.query(Chat).order_by(Chat.date.desc()).limit(chats_to_return).all()
-    return recent_chats 
+    total_chats = session.query(Chat).count()
+    
+    # Handling cases where the provided indexes may be out of existing range
+    if first_chat < 0 or first_chat >= total_chats:
+        raise ValueError("Chat indexes are out of the current stored range")
+    if (last_chat > total_chats):
+        last_chat = total_chats
+    # Calculate the offset and limit for the SQL query
+    offset = first_chat
+    limit = last_chat - first_chat + 1
+
+    # Query the database using computed offset and limit
+    chats_query = session.query(Chat).order_by(Chat.date.desc()).offset(offset).limit(limit).all()
+    return chats_query
 
 # Setup the database
 database_path = os.path.expanduser('~/.gpt/chats.db')
