@@ -241,6 +241,8 @@ if __name__ == "__main__":
 
     if not chat_loaded:
         [messages, chat_id] = load_default_chat(args.prompt,stdin)
+
+    print("DEBUG: " + str(messages))
     [result, messages] = call_and_process(messages, chat_id)
 
     while result:
