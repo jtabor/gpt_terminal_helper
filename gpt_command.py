@@ -15,6 +15,13 @@ import json
 import gpt_db
 import textwrap
 
+from rich.console import Console
+from rich.text import Text
+from rich.panel import Panel
+from rich.markdown import Markdown
+
+console = Console()
+
 GPT_MODEL = 'gpt-4-turbo-2024-04-09'
 # GPT_MODEL = 'gpt-4o-2024-05-13'
 SYSTEM_PROMPT = "You are a helpful command line assistant.  You take requests from the user and generate Linux shell commands for them.  You ask for extra info if you need it.  Use the provided function calls to accomplish the user's request.  You can call shell commands with return_result = True to get more information to accomplish your goal.  Unless otherwise specified, assume you are using the current directory for all requests.  Try to take some initiative while answering the user's question.  They will approve all shell commands."
@@ -36,7 +43,26 @@ def add_message_to_chat(message, chat_id):
     for content in message['content']:
         gpt_db.add_message(chat_id, message['role'], content['type'],content[content['type']])
 
-def print_message(message,show_system=False):
+def print_message(message, show_system=True):
+    if message['role'] != 'system' or show_system:
+        role_text = f"**{message['role']}**:"
+        content_text = "\n".join(content['text'] for content in message['content'] if content['type'] == 'text')
+        markdown_message = Markdown(f"{role_text}\n{content_text}")
+        
+        panel = Panel(markdown_message, expand=True)
+        console.print(panel)
+
+def print_numbered_list(conversations):
+    for index, conversation in enumerate(conversations):
+        text = Text.assemble(
+            # (f"{index}-", "black on white"),
+            (f"[{index}]:", "bold blue"),
+            (" " + conversation, "default")
+        )
+        console.print(text)
+    console.print("\n")
+
+def print_message_old(message,show_system=False):
     
     if message['role'] != 'system' or show_system:
         wrapper = textwrap.TextWrapper(width=os.get_terminal_size().columns-15,initial_indent='',subsequent_indent=' '*INDENT_WIDTH)
@@ -211,10 +237,7 @@ if __name__ == "__main__":
         selection = False
         while not selection:
             recent_chats = gpt_db.get_recent_chats(first_chat,first_chat + MAX_FILES_LIST - 1)
-            num_chats = 0
-            for chat in recent_chats:
-                print("[%d] - %s" % (num_chats,chat.title))
-                num_chats = num_chats + 1
+            print_numbered_list([chat.title for chat in recent_chats])
             answer = input("Select a conversation to continue: ")
             answer = answer.lower()
             if (answer.isdigit()):
@@ -242,7 +265,6 @@ if __name__ == "__main__":
     if not chat_loaded:
         [messages, chat_id] = load_default_chat(args.prompt,stdin)
 
-    print("DEBUG: " + str(messages))
     [result, messages] = call_and_process(messages, chat_id)
 
     while result:
