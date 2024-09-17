@@ -18,7 +18,7 @@ This python program helps a user run terminal commands.  It provides chatGPT wit
     3. User defined functions - More functions can be added in [chat_functions.py](https://github.com/jtabor/gpt_terminal_helper/blob/master/chat_functions.py).
 
 
-Chat history is saved in a sqlite file in GPT_DIRECTORY so you can continue conversations or convert them to plain text for copy and pasting.  
+Chat history is saved in a sqlite file in GPT_DIRECTORY so you can continue conversations or convert them to plain text for copy and pasting.  The conversation is formatted as markdown with the [rich](https://github.com/Textualize/rich) python library.  
 
 
 ## Setup
@@ -54,6 +54,7 @@ options:
 ## TODO
 1. Add support for local LLMs (Ollama)/other LLMs with OpenAi library.
 2. Use the OpenAi Assistants API?  This will use threads instead of having to send the entire conversation up each time (maybe saves API usage too?).  Also adds support for file search.
+3. Config file for model options (ie. control the model used, temperature, etc.)  Maybe have an option for user-defined 'presets' they can load themselves with a command line arg.
 
 ## Contributing
 Feel free to open a PR if you want to contribute, especially if it's for one of the TODOs.
