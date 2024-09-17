@@ -53,8 +53,9 @@ if not os.path.exists(GPT_DIRECTORY):
 tools = [cf.run_in_terminal_function, cf.write_file_function]
 tools_descriptions = [tool.description for tool in tools]
 def add_message_to_chat(message, chat_id):
-    for content in message['content']:
-        gpt_db.add_message(chat_id, message['role'], content['type'],content[content['type']])
+    if (not args.incognito):
+        for content in message['content']:
+                gpt_db.add_message(chat_id, message['role'], content['type'],content[content['type']])
 
 def print_message(message, show_system=True, raw_text=False):
     if (message['role'] != 'system' or show_system) and not raw_text:
@@ -143,11 +144,15 @@ def load_default_chat(prompt,stdin):
     messages = [{"role": "system", "content": [{"type":"text", "text":SYSTEM_PROMPT}]}]
     messages.append({ "role": "system", "content": [ { "type": "text", "text": stdin, } ], })
     messages.append({ "role": "user", "content": [ { "type": "text", "text": prompt, } ], })
-    chat_id = gpt_db.add_chat(prompt)
+    if (not args.incognito):
+        chat_id = gpt_db.add_chat(prompt)
+    else:
+        chat_id = None
     user_specific_messages = generate_user_specific_messages()
    
     for user_specific_message in user_specific_messages:
         messages.append(user_specific_message)
+    
     for message in messages:
         add_message_to_chat(message,chat_id)
     
@@ -160,7 +165,8 @@ def load_default_chat(prompt,stdin):
 
 def load_chat_from_db(chat_id):
     db_messages = gpt_db.get_all_messages(chat_id)
-    gpt_db.update_chat_date(chat_id)
+    if (not args.incognito):
+        gpt_db.update_chat_date(chat_id)
     to_return = []
     for db_message in db_messages:
         to_return.append({"role":db_message.role,"content": [ { "type": db_message.message_type, "text": db_message.content}]})
@@ -266,13 +272,13 @@ if __name__ == "__main__":
         while not selection:
             recent_chats = gpt_db.get_recent_chats(first_chat,first_chat + MAX_FILES_LIST - 1)
             print_numbered_list([chat.title for chat in recent_chats])
-            answer = input("Select a conversation to continue: ")
+            answer = input("Select a conversation to continue (n for more): ")
             answer = answer.lower()
             if (answer.isdigit()):
                 answer = int(answer)
                 chat_id = recent_chats[answer].id 
                 selection = True
-            elif (answer == 'm'):
+            elif (answer == 'n'):
                 first_chat = first_chat + MAX_FILES_LIST
             else:
                 print("ERROR - Invalid input - quitting.")
