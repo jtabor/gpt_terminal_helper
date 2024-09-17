@@ -50,4 +50,10 @@ options:
   --print, -p      Convert a previous conversation to text
   --gpt4o, -o      Use the GPT 4o model
 ```
-    
+
+## TODO
+1. Add support for local LLMs (Ollama)/other LLMs with OpenAi library.
+2. Use the OpenAi Assistants API?  This will use threads instead of having to send the entire conversation up each time (maybe saves API usage too?).  Also adds support for file search.
+
+## Contributing
+Feel free to open a PR if you want to contribute, especially if it's for one of the TODOs.
