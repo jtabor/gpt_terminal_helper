@@ -236,7 +236,7 @@ def call_and_process(message_list, chat_id):
 
 if __name__ == "__main__":
     
-    parser = argparse.ArgumentParser(description="Command line tool for conversation management.")
+    parser = argparse.ArgumentParser(description="A chatGPT powered helper for terminals.")
     parser.add_argument('prompt', nargs='?', default='', help='String prompt to start a conversation unless a flag is provided.')
     parser.add_argument('--last', '-l', action='store_true', help='Loads the last conversation.')
     parser.add_argument('--incognito', '-i', action='store_true', help='Marks the conversation as not saved.')
