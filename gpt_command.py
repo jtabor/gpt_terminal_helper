@@ -15,6 +15,18 @@ import json
 import gpt_db
 import textwrap
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.key_binding import KeyBindings
+
+session = PromptSession()
+bindings = KeyBindings()
+
+# Add a key binding for Ctrl+D to accept the input
+@bindings.add('c-d')
+def _(event):
+    event.current_buffer.validate_and_handle()
+
+
 from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
@@ -43,14 +55,26 @@ def add_message_to_chat(message, chat_id):
     for content in message['content']:
         gpt_db.add_message(chat_id, message['role'], content['type'],content[content['type']])
 
-def print_message(message, show_system=True):
-    if message['role'] != 'system' or show_system:
+def print_message(message, show_system=True, raw_text=False):
+    if (message['role'] != 'system' or show_system) and not raw_text:
         role_text = f"**{message['role']}**:"
         content_text = "\n".join(content['text'] for content in message['content'] if content['type'] == 'text')
         markdown_message = Markdown(f"{role_text}\n{content_text}")
         
         panel = Panel(markdown_message, expand=True)
         console.print(panel)
+    if (message['role'] != 'system' or show_system) and raw_text:
+        role_text = f"**{message['role']}**:"
+        content_text = "\n".join(content['text'] for content in message['content'] if content['type'] == 'text')
+        print(content_text)     
+    
+def multiline_user_input(prompt):
+    
+    print(prompt)
+    user_input = session.prompt(multiline=True, key_bindings=bindings)
+    print("\033[F" * (user_input.count('\n') + 2) + "\033[K", end='')  
+    return user_input
+
 
 def print_numbered_list(conversations):
     for index, conversation in enumerate(conversations):
@@ -180,9 +204,11 @@ def call_and_process(message_list, chat_id):
         message_list.append(return_message)
         if (tools_called is not None):
             print("INFO: Tools pending: " + str(len(response.choices[0].message.tool_calls)),file=sys.stderr)
-        user_input = cf.safe_input("Answer: ").lower()
+        # user_input = cf.safe_input("Answer: ").lower()
+        user_input = multiline_user_input("Answer: ") 
         if user_input != '':
             new_message = {"role": "user", "content":[{"type":"text", "text": user_input}]}
+            print_message(new_message)
             message_list.append(new_message)
             add_message_to_chat(new_message,chat_id)
             should_continue = True
@@ -214,8 +240,6 @@ if __name__ == "__main__":
     if (not (args.resume or (len(args.prompt) > 0) or args.last or args.print)):
         parser.print_help()
         exit()
-    
-    
     
     stdin = ""
     ready = True
@@ -252,10 +276,11 @@ if __name__ == "__main__":
         print("\n\n")
         messages = load_chat_from_db(chat_id)
         for message in messages:
-            print_message(message,args.print)
+            print_message(message,args.print,args.print)
         if (args.resume):
-            answer = input("Additional Prompt:")
-            user_message ={"role": "user", "content": [{"type":'text', "text": answer}]} 
+            answer = multiline_user_input("Additional Prompt:")
+            user_message ={"role": "user", "content": [{"type":'text', "text": answer}]}
+            print_message(user_message)
             messages.append(user_message)
             add_message_to_chat(user_message, chat_id)
             chat_loaded = True
