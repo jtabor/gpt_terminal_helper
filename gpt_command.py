@@ -34,7 +34,8 @@ from rich.markdown import Markdown
 
 console = Console()
 
-GPT_MODEL = 'gpt-4-turbo-2024-04-09'
+# GPT_MODEL = 'gpt-4-turbo-2024-04-09'
+GPT_MODEL = 'gpt-4-turbo'
 # GPT_MODEL = 'gpt-4o-2024-05-13'
 SYSTEM_PROMPT = "You are a helpful command line assistant.  You take requests from the user and generate Linux shell commands for them.  You ask for extra info if you need it.  Use the provided function calls to accomplish the user's request.  You can call shell commands with return_result = True to get more information to accomplish your goal.  Unless otherwise specified, assume you are using the current directory for all requests.  Try to take some initiative while answering the user's question.  They will approve all shell commands."
 
@@ -235,12 +236,15 @@ if __name__ == "__main__":
     parser.add_argument('--incognito', '-i', action='store_true', help='Marks the conversation as not saved.')
     parser.add_argument('--resume','-r', action='store_true', help='Open the conversation list and choose one to continue')
     parser.add_argument('--print','-p', action='store_true', help='Convert a previous conversation to text')
+    parser.add_argument('--gpt4o' , '-o' , action='store_true', help='Use the GPT 4o model')
 
     args = parser.parse_args()  
     if (not (args.resume or (len(args.prompt) > 0) or args.last or args.print)):
         parser.print_help()
         exit()
-    
+    if (args.gpt4o):
+        print("DEBUG USING 4o")
+        GPT_MODEL = "gpt-4o"
     stdin = ""
     ready = True
     while ready:
