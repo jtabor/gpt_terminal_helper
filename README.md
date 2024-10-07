@@ -9,7 +9,7 @@ This python program helps a user run terminal commands.  It provides chatGPT wit
 1. User defined prompts
     1. The user can define additions to the default prompt in their gpt directory (`~/.gpt/global_context.md` by default, the directory can be overridden with the GPT_DIRECTORY environment variable).  
     2. The user can also define a per-directory addition to the prompt if there some extra information they need to add about using the current directory by creating a file in `.gpt/local_context.md` in the directory gpt_terminal_helper will be run from.  This helps give special instructions for a project or set of data.
-2. Environemt - The system automatically adds the output of `lsb_release -a` at the start of each conversation so GPT knows about your platform.  
+2. Environment - The system automatically adds the output of `lsb_release -a` at the start of each conversation so GPT knows about your platform.  
 3. Current time - the current time is added to each chat.
 4. The current directory is added to each chat.
 5. There are a few functions that are also added to chat gpt by default.
