@@ -54,9 +54,9 @@ if not os.path.exists(GPT_DIRECTORY):
 
 tools = [cf.run_in_terminal_function, cf.write_file_function]
 # OpenAI tools format
-tools_descriptions_openai = [tool.description for tool in tools]
+tools_descriptions_openai = [tool.get_function_description("openai") for tool in tools]
 # Claude tools format
-tools_descriptions_claude = [tool.claude_description for tool in tools]
+tools_descriptions_claude = [tool.get_function_description("claude") for tool in tools]
 def add_message_to_chat(message, chat_id):
     if (not args.incognito):
         for content in message['content']:
@@ -337,8 +337,7 @@ def call_and_process(message_list, chat_id):
                     # print(f"DEBUG Using tool: {tool_name} with args: {tool_args}", file=sys.stderr)
                     
                     for tool in tools:
-                        if tool_name == tool.name or (hasattr(tool, 'claude_description') and 
-                                                     tool.claude_description['name'] == tool_name):
+                        if tool_name == tool.name or tool.get_function_description("claude")['name'] == tool_name:
                             [should_continue, return_message] = tool.run(tool_args)
                             # For Claude, we need to add this as a tool_result
                             tool_result_message = {"role": "system", "content":[{"type":"text", "text":return_message}]}

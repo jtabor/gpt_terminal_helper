@@ -3,24 +3,100 @@ import json
 import subprocess
 import sys
 import re
+from typing import List, Dict, Any, Optional, Union, Callable
 
 approved_command_list = ['ls', 'cat', 'head', 'tail' ,'grep', 'echo']
 command_list_required = [";","$"]
 
 file_prompt_required = ['/','..','~']
-class ChatFunction:
-    def __init__(self,description,function=None):
 
+class FunctionArgument:
+    def __init__(self, name: str, description: str, arg_type: str, is_required: bool = False):
+        self.name = name
         self.description = description
-        self.name = description['function']['name'] 
+        self.type = arg_type
+        self.is_required = is_required
+
+class ChatFunction:
+    def __init__(self, name: str, description: str, arguments: List[FunctionArgument] = None, function: Callable = None):
+        self.name = name
+        self.description = description
+        self.arguments = arguments or []
         
-        if (function is None):
+        if function is None:
             self.run = self.empty_function
         else:
-            self.run = function 
-        
+            self.run = function
+            
     def empty_function(self, from_gpt):
-        raise "Error - run not set for this function: " + str(from_gpt)
+        raise Exception(f"Error - run not set for this function: {from_gpt}")
+    
+    def get_function_description(self, provider: str = "openai") -> Dict[str, Any]:
+        """Generate function description based on the specified provider format.
+        
+        Args:
+            provider: The provider to generate the description for ('openai' or 'claude')
+            
+        Returns:
+            Dictionary containing the function description in the specified format
+        """
+        if provider.lower() == "openai":
+            return self._generate_openai_description()
+        elif provider.lower() == "claude":
+            return self._generate_claude_description()
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+    
+    def _generate_openai_description(self) -> Dict[str, Any]:
+        """Generate OpenAI-compatible function description."""
+        properties = {}
+        required = []
+        
+        for arg in self.arguments:
+            properties[arg.name] = {
+                "type": arg.type,
+                "description": arg.description
+            }
+            
+            if arg.is_required:
+                required.append(arg.name)
+                
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required
+                }
+            }
+        }
+    
+    def _generate_claude_description(self) -> Dict[str, Any]:
+        """Generate Claude-compatible function description."""
+        properties = {}
+        required = []
+        
+        for arg in self.arguments:
+            properties[arg.name] = {
+                "type": arg.type,
+                "description": arg.description
+            }
+            
+            if arg.is_required:
+                required.append(arg.name)
+                
+        return {
+            "name": self.name,
+            "description": self.description,
+            "input_schema": {
+                "type": "object",
+                "properties": properties,
+                "required": required
+            }
+        }
 
 def safe_input(prompt):
     with open('/dev/tty', 'r') as tty:
@@ -89,49 +165,29 @@ def run_in_terminal(from_gpt):
     return [False,result]
 
 # OpenAI style tool definition
-run_in_terminal_desc_openai = {
-        "type": "function",
-        "function": {
-            "name": "run_in_terminal",
-            "description": "Run the input string in a Linux shell",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The full command to run in the shell.  The command will be run in python's subprocess.run command.",
-                    },
-                    "return_result": {
-                        "type": "boolean",
-                        "description": "If True, this will give you the result of the command.  If False, the command will be run and the result will be sent directly to the user."}
-                },
-                "required": ["command"],
-            },
-        },
-    }
+# Define arguments for run_in_terminal function
+run_in_terminal_args = [
+    FunctionArgument(
+        name="command",
+        description="The full command to run in the shell. The command will be run in python's subprocess.run command.",
+        arg_type="string",
+        is_required=True
+    ),
+    FunctionArgument(
+        name="return_result",
+        description="If True, this will give you the result of the command. If False, the command will be run and the result will be sent directly to the user.",
+        arg_type="boolean",
+        is_required=False
+    )
+]
 
-# Claude style tool definition 
-run_in_terminal_desc_claude = {
-    "name": "run_in_terminal",
-    "description": "Run the input string in a Linux shell",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "command": {
-                "type": "string", 
-                "description": "The full command to run in the shell. The command will be run in python's subprocess.run command."
-            },
-            "return_result": {
-                "type": "boolean",
-                "description": "If True, this will give you the result of the command. If False, the command will be run and the result will be sent directly to the user."
-            }
-        },
-        "required": ["command"]
-    }
-}
-
-run_in_terminal_function = ChatFunction(run_in_terminal_desc_openai, run_in_terminal)
-run_in_terminal_function.claude_description = run_in_terminal_desc_claude
+# Create the run_in_terminal ChatFunction instance
+run_in_terminal_function = ChatFunction(
+    name="run_in_terminal",
+    description="Run the input string in a Linux shell",
+    arguments=run_in_terminal_args,
+    function=run_in_terminal
+)
 
 def write_file(from_gpt):
     return_result = True
@@ -156,48 +212,27 @@ def write_file(from_gpt):
             result = "FILE WRITE DENIED BY USER: " + str(filename)
     return [return_result,result]
 
-# OpenAI style tool definition
-write_file_desc_openai = {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "This saves the input text to a file named filename in the current directory",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filename": {
-                        "type": "string",
-                        "description": "filename of the file to save",
-                    },
-                    "file_text": {
-                        "type": "string",
-                        "description": "The contents of the new file"}
-                },
-                "required": ["filename","file_text"]
-            },
-        },
-    }
+# Define arguments for write_file function
+write_file_args = [
+    FunctionArgument(
+        name="filename",
+        description="filename of the file to save",
+        arg_type="string",
+        is_required=True
+    ),
+    FunctionArgument(
+        name="file_text",
+        description="The contents of the new file",
+        arg_type="string",
+        is_required=True
+    )
+]
 
-# Claude style tool definition
-write_file_desc_claude = {
-    "name": "write_file",
-    "description": "This saves the input text to a file named filename in the current directory",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "filename": {
-                "type": "string",
-                "description": "filename of the file to save"
-            },
-            "file_text": {
-                "type": "string",
-                "description": "The contents of the new file"
-            }
-        },
-        "required": ["filename", "file_text"]
-    }
-}
-
-write_file_function = ChatFunction(write_file_desc_openai, write_file)
-write_file_function.claude_description = write_file_desc_claude
+# Create the write_file ChatFunction instance
+write_file_function = ChatFunction(
+    name="write_file",
+    description="This saves the input text to a file named filename in the current directory",
+    arguments=write_file_args,
+    function=write_file
+)
 
