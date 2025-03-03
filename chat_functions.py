@@ -88,7 +88,8 @@ def run_in_terminal(from_gpt):
         return [return_result,result]
     return [False,result]
 
-run_in_terminal_desc = {
+# OpenAI style tool definition
+run_in_terminal_desc_openai = {
         "type": "function",
         "function": {
             "name": "run_in_terminal",
@@ -109,7 +110,28 @@ run_in_terminal_desc = {
         },
     }
 
-run_in_terminal_function = ChatFunction(run_in_terminal_desc, run_in_terminal)
+# Claude style tool definition 
+run_in_terminal_desc_claude = {
+    "name": "run_in_terminal",
+    "description": "Run the input string in a Linux shell",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "command": {
+                "type": "string", 
+                "description": "The full command to run in the shell. The command will be run in python's subprocess.run command."
+            },
+            "return_result": {
+                "type": "boolean",
+                "description": "If True, this will give you the result of the command. If False, the command will be run and the result will be sent directly to the user."
+            }
+        },
+        "required": ["command"]
+    }
+}
+
+run_in_terminal_function = ChatFunction(run_in_terminal_desc_openai, run_in_terminal)
+run_in_terminal_function.claude_description = run_in_terminal_desc_claude
 
 def write_file(from_gpt):
     return_result = True
@@ -134,8 +156,8 @@ def write_file(from_gpt):
             result = "FILE WRITE DENIED BY USER: " + str(filename)
     return [return_result,result]
 
-
-write_file_desc = {
+# OpenAI style tool definition
+write_file_desc_openai = {
         "type": "function",
         "function": {
             "name": "write_file",
@@ -155,5 +177,27 @@ write_file_desc = {
             },
         },
     }
-write_file_function = ChatFunction(write_file_desc, write_file)
+
+# Claude style tool definition
+write_file_desc_claude = {
+    "name": "write_file",
+    "description": "This saves the input text to a file named filename in the current directory",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filename": {
+                "type": "string",
+                "description": "filename of the file to save"
+            },
+            "file_text": {
+                "type": "string",
+                "description": "The contents of the new file"
+            }
+        },
+        "required": ["filename", "file_text"]
+    }
+}
+
+write_file_function = ChatFunction(write_file_desc_openai, write_file)
+write_file_function.claude_description = write_file_desc_claude
 

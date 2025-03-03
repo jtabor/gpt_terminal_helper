@@ -1,5 +1,6 @@
 jedi==0.18.2
 openai==1.45.1
+anthropic==0.19.1
 prompt_toolkit==3.0.43
 rich==13.8.1
 SQLAlchemy==2.0.28
