@@ -57,4 +57,7 @@ options:
 3. Config file for model options (ie. control the model used, temperature, etc.)  Maybe have an option for user-defined 'presets' they can load themselves with a command line arg.
 
 ## Contributing
-Feel free to open a PR if you want to contribute, especially if it's for one of the TODOs.
+Feel free to open a PR if you want to contribute, especially if it's for one of the TODOs. 
+
+## Update 2026
+This repo will no longer be maintained since Claude Code and other tools have much deeper functionality.
